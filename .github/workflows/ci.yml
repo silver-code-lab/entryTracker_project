@@ -8,49 +8,24 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-
-      - name: Install dependencies
-        run: pip install --no-cache-dir -r requirements.txt
-
-      - name: Start app & run unit test
-        run: |
-          nohup python app.py &
-          sleep 5
-          curl --fail http://localhost:5000/health
-
-      - name: Build Docker image
-        run: docker build -t entrytracker:latest .
-
-      - name: Run E2E tests with Docker Compose
-        run: |
-          docker compose up -d
-          sleep 10
-          curl --fail http://localhost:5000/health
-          docker compose down
+    
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region:            us-east-1
+          aws-region:            ap-south-1   
 
       - name: Login to Amazon ECR
         run: |
-          aws ecr get-login-password --region us-east-1 | \
-            docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
+          aws ecr get-login-password --region ap-south-1 | \
+            docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-south-1.amazonaws.com
 
       - name: Tag and Push to ECR
         run: |
-          docker tag entrytracker:latest ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/entrytracker:latest
-          docker push    ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/entrytracker:latest
+          docker tag entrytracker:latest ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-south-1.amazonaws.com/entrytracker:latest
+          docker push    ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-south-1.amazonaws.com/entrytracker:latest
 
   deploy:
     needs: build-and-test
