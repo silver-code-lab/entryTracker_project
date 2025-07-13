@@ -6,22 +6,26 @@ from flask import Flask, jsonify
 
 app = Flask(__name__)
 
-# Database connection configurations (update with your MySQL RDS or Docker MySQL config)
+# Health endpoint – for CI checks
+@app.route('/health')
+def health():
+    return jsonify(status="OK"), 200
+
+# Database connection configurations
 DB_CONFIG = {
-    'host': os.environ.get('DB_HOST', 'mysql'),  # Use 'mysql' for Docker service name or your RDS endpoint for AWS
-    'user': os.environ.get('DB_USER', 'root'),  # MySQL user
-    'password': os.environ.get('DB_PASSWORD', 'password'),  # MySQL password
-    'database': os.environ.get('DB_NAME', 'app_db')  # Database name
+    'host': os.environ.get('DB_HOST', 'mysql'),
+    'user': os.environ.get('DB_USER', 'root'),
+    'password': os.environ.get('DB_PASSWORD', 'password'),
+    'database': os.environ.get('DB_NAME', 'app_db')
 }
 
 def get_db_connection():
-    connection = pymysql.connect(**DB_CONFIG)
-    return connection
+    return pymysql.connect(**DB_CONFIG)
 
 def create_table_if_not_exists():
-    connection = get_db_connection()
+    conn = get_db_connection()
     try:
-        with connection.cursor() as cursor:
+        with conn.cursor() as cursor:
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS request_log (
                     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -30,9 +34,9 @@ def create_table_if_not_exists():
                     timestamp DATETIME
                 );
             """)
-        connection.commit()
+        conn.commit()
     finally:
-        connection.close()
+        conn.close()
 
 @app.route('/')
 def home():
@@ -46,21 +50,18 @@ def home():
         "timestamp": timestamp
     }
 
-    # Connect to the database
     try:
-        connection = get_db_connection()
+        conn = get_db_connection()
         create_table_if_not_exists()
 
-        # Insert the current entry into the database
-        with connection.cursor() as cursor:
+        with conn.cursor() as cursor:
             cursor.execute("""
                 INSERT INTO request_log (hostname, ip_address, timestamp)
                 VALUES (%s, %s, %s)
             """, (hostname, ip_address, timestamp))
-        connection.commit()
+        conn.commit()
 
-        # Fetch all entries from the database
-        with connection.cursor() as cursor:
+        with conn.cursor() as cursor:
             cursor.execute("""
                 SELECT hostname, ip_address, timestamp
                 FROM request_log
@@ -72,20 +73,22 @@ def home():
             {"hostname": row[0], "ip_address": row[1], "timestamp": row[2].strftime('%Y-%m-%d %H:%M:%S')}
             for row in entries
         ]
-
-        connection.close()
+        conn.close()
 
         return jsonify({
             "message": "Data fetched successfully from the database.",
             "current_entry": current_entry,
             "previous_entries": previous_entries
         })
-    
+
     except Exception as e:
         return jsonify({
             "message": f"No connection to the database. Showing current entry only. Error: {str(e)}",
             "current_entry": current_entry
         })
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5000)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
