@@ -4,24 +4,13 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:     # מוסיף כפתור להרצה ידנית
-
-env:
-  AWS_REGION: ap-south-1
-  AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-
-      - name: Debug AWS secrets
-        run: |
-          echo "AWS_ACCESS_KEY_ID='${{ secrets.AWS_ACCESS_KEY_ID }}'"
-          echo "AWS_SECRET_ACCESS_KEY='${{ secrets.AWS_SECRET_ACCESS_KEY }}'"
 
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
@@ -37,12 +26,8 @@ jobs:
           sleep 5
           curl --fail http://localhost:5000/health
 
-      - name: Build & tag Docker image
-        run: |
-          # בונים ומתוייגים פעמיים: ל־local ול־ECR
-          docker build -t entrytracker:latest .
-          docker tag entrytracker:latest \
-            ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/entrytracker:latest
+      - name: Build Docker image
+        run: docker build -t entrytracker:latest .
 
       - name: Run E2E tests with Docker Compose
         run: |
@@ -56,17 +41,19 @@ jobs:
         with:
           aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region:            ${{ env.AWS_REGION }}
+          aws-region:           ${{ secrets.AWS_REGION }}
 
       - name: Login to Amazon ECR
         run: |
-          aws ecr get-login-password --region ${{ env.AWS_REGION }} | \
+          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | \
             docker login --username AWS --password-stdin \
-              ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+              ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
 
-      - name: Push image to ECR
+      - name: Tag and Push to ECR
         run: |
-          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/entrytracker:latest
+          docker tag entrytracker:latest \
+            ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/entrytracker:latest
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/entrytracker:latest
 
   deploy:
     needs: build-and-test
@@ -75,9 +62,9 @@ jobs:
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v0.1.7
         with:
-          host:     ${{ secrets.EC2_HOST }}
-          username: ec2-user
-          key:      ${{ secrets.EC2_SSH_KEY }}
+          host:     ${{ secrets.EC2_HOST }}      # IP או DNS של ה-EC2
+          username: ec2-user                     # או משתמש אחר לפי AMI
+          key:      ${{ secrets.EC2_SSH_KEY }}   # התוכן של קובץ ה-.pem שהדבקת ב-Secrets
           script: |
             cd ~/entryTracker_project
             docker compose pull entrytracker:latest
