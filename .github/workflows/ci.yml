@@ -38,18 +38,19 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          aws-region: us-east-1
-          role-to-assume: arn:aws:iam::123456789012:role/YourECRPushRole
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            us-east-1
 
       - name: Login to Amazon ECR
         run: |
           aws ecr get-login-password --region us-east-1 | \
-            docker login --username AWS --password-stdin 123456789012.dkr.ecr.us-east-1.amazonaws.com
+            docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
 
       - name: Tag and Push to ECR
         run: |
-          docker tag entrytracker:latest 123456789012.dkr.ecr.us-east-1.amazonaws.com/entrytracker:latest
-          docker push 123456789012.dkr.ecr.us-east-1.amazonaws.com/entrytracker:latest
+          docker tag entrytracker:latest ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/entrytracker:latest
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/entrytracker:latest
 
   deploy:
     needs: build-and-test
@@ -65,3 +66,4 @@ jobs:
             cd ~/entryTracker_project
             docker compose pull entrytracker:latest
             docker compose up -d
+
