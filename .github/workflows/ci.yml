@@ -5,14 +5,15 @@ on:
     branches:
       - main
 
+env:
+  AWS_REGION: ap-south-1
+  AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+  ECR_REPOSITORY: entrytracker
+  ECR_REGISTRY: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    env:
-      AWS_REGION:   ap-south-1
-      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-      ECR_REGISTRY:   ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -34,8 +35,8 @@ jobs:
       - name: Build & tag Docker image
         run: |
           docker build \
-            -t entrytracker:latest \
-            -t $ECR_REGISTRY/entrytracker:latest .
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
+            -t $ECR_REPOSITORY:latest .
 
       - name: Run E2E tests with Docker Compose
         run: |
@@ -58,7 +59,7 @@ jobs:
 
       - name: Push image to ECR
         run: |
-          docker push $ECR_REGISTRY/entrytracker:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
   deploy:
     needs: build-and-test
@@ -74,4 +75,3 @@ jobs:
             cd ~/entryTracker_project
             docker compose pull entrytracker:latest
             docker compose up -d
-
