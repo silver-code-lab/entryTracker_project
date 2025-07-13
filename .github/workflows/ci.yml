@@ -1,13 +1,14 @@
-nname: CI/CD Pipeline
+name: CI/CD Pipeline
 
 on:
   push:
     branches: [ main ]
 
 env:
-  AWS_REGION: ap-south-1
+  AWS_REGION:  ap-south-1
   AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
   ECR_REPOSITORY: entrytracker
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
 
 jobs:
   build-and-test:
@@ -50,16 +51,13 @@ jobs:
 
       - name: Login to Amazon ECR
         run: |
-          aws ecr get-login-password --region ${{ env.AWS_REGION }} | \
-            docker login --username AWS \
-              --password-stdin ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+          aws ecr get-login-password --region $AWS_REGION \
+            | docker login --username AWS --password-stdin $ECR_REGISTRY
 
-      - name: Tag and Push to ECR
+      - name: Tag & Push to ECR
         run: |
-          docker tag entrytracker:latest \
-            ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest
-          docker push \
-            ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest
+          docker tag entrytracker:latest $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push      $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
   deploy:
     needs: build-and-test
@@ -69,10 +67,10 @@ jobs:
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v0.1.7
         with:
-          host:     ${{ secrets.EC2_HOST }}        # למשל "13.126.203.124"
-          username: ubuntu                        # או "ec2-user" לפי ה-AMIs שלך
-          key:      ${{ secrets.EC2_SSH_KEY }}     # תוכן PEM של המפתח
+          host:     ${{ secrets.EC2_HOST }}
+          username: ubuntu               
+          key:      ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ~/entryTracker_project
-            docker compose pull ${ECR_REPOSITORY}:latest
+            docker compose pull $ECR_REGISTRY/$ECR_REPOSITORY:latest
             docker compose up -d
