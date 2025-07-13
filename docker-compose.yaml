@@ -1,0 +1,31 @@
+services:
+  db:
+    image: mysql:5.7
+    platform: linux/amd64            
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: entrytracker
+      MYSQL_USER: tracker
+      MYSQL_PASSWORD: trackerpassword
+    volumes:
+      - db_data:/var/lib/mysql
+
+  app:
+    build: .
+    depends_on:
+      - db
+    ports:
+      - "5001:5000"                 
+    environment:
+     
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: tracker
+      DB_PASSWORD: trackerpassword
+      DB_NAME: entrytracker
+      
+      
+
+volumes:
+  db_data:
+
