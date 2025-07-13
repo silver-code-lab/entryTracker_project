@@ -50,7 +50,7 @@ jobs:
       - name: Tag and Push to ECR
         run: |
           docker tag entrytracker:latest ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/entrytracker:latest
-          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/entrytracker:latest
+          docker push    ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/entrytracker:latest
 
   deploy:
     needs: build-and-test
@@ -59,11 +59,10 @@ jobs:
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v0.1.7
         with:
-          host: ${{ secrets.EC2_HOST }}
+          host:     ${{ secrets.EC2_HOST }}
           username: ec2-user
-          key: ${{ secrets.EC2_SSH_KEY }}
+          key:      ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ~/entryTracker_project
             docker compose pull entrytracker:latest
             docker compose up -d
-
