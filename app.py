@@ -6,12 +6,12 @@ from flask import Flask, jsonify
 
 app = Flask(__name__)
 
-# Health endpoint – for CI checks
+
 @app.route('/health')
 def health():
     return jsonify(status="OK"), 200
 
-# Database connection configurations
+
 DB_CONFIG = {
     'host': os.environ.get('DB_HOST', 'mysql'),
     'user': os.environ.get('DB_USER', 'root'),
